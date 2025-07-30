@@ -5,6 +5,8 @@ import {Tick} from "./lib/Tick.sol";
 import {Position} from "./lib/Position.sol";
 
 contract UniswapV3Pool {
+    error InvalidTickRange();
+
     using Tick for mapping(int24 => Tick.Info);
     using Position for mapping(bytes32 => Position.Info);
     using Position for Position.Info;
@@ -16,7 +18,7 @@ contract UniswapV3Pool {
     address public immutable token0;
     address public immutable token1;
 
-    // Packing variables that are read together
+    // Gas optimization: Packing up variables to avoid unecessary calls
     struct Slot0 {
         uint160 sqrtPriceX96; //Current sqrt(P)
         int24 tick; //Current tick
@@ -36,5 +38,12 @@ contract UniswapV3Pool {
         token1 = _token1;
 
         slot0 = Slot0({sqrtPriceX96: sqrtPriceX96, tick: tick});
+    }
+
+    function mint(address owner, int24 lowerTick, int24 upperTick, uint128 amount)
+        external
+        returns (uint256 amount0, uint256 amount1)
+    {
+        if (lowerTick >= upperTick || lowerTick < MIN_TICK || upperTick < MAX_TICK) revert InvalidTickRange();
     }
 }

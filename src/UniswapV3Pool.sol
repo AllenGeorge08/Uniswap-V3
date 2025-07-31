@@ -69,6 +69,8 @@ contract UniswapV3Pool {
 
         position.update(liquidityAmount);
 
+        liquidity += uint128(liquidityAmount);
+
         if (amount0 > 0) balance0Before = balance0();
         if (amount1 > 0) balance1Before = balance1();
 

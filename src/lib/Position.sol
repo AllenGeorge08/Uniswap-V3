@@ -14,14 +14,19 @@ library Position {
         self.liquidity = liquidityAfter;
     }
 
-    function get(
-        mapping (bytes32 => Info) storage self,
-        address owner,
-        int24 lowerTick,
-        int24 upperTick
-    ) internal view returns (Info storage position){
-        position = self[
-            keccak256(abi.encodePacked(owner,lowerTick,upperTick))
-        ];
+    /**
+     *
+     * @param self Position
+     * @param owner Allen
+     * @param lowerTick The lower range of the position
+     * @param upperTick The upper range of the position
+     */
+    function get(mapping(bytes32 => Info) storage self, address owner, int24 lowerTick, int24 upperTick)
+        internal
+        view
+        returns (Info storage position)
+    {
+        position = self[ //Hashed: three keys, if individually stored it will take 32 bytes each since sol stores values in 32 byte slots, but it won't happen now
+        keccak256(abi.encodePacked(owner, lowerTick, upperTick))];
     }
 }

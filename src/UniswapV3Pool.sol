@@ -10,6 +10,7 @@ contract UniswapV3Pool {
     error InvalidTickRange();
     error InsufficientInputAmount();
     error ZeroLiquidity();
+    error  MintCallbackFailed();
 
     event Mint(address, address, int24, int24, uint256, uint256, uint256);
 
@@ -61,10 +62,22 @@ contract UniswapV3Pool {
         uint256 balance0Before;
         uint256 balance1Before;
 
+        ticks.update(lowerTick, liquidityAmount);
+        ticks.update(upperTick, liquidityAmount);
+
+        Position.Info storage position = positions.get(owner, lowerTick, upperTick);
+
+        position.update(liquidityAmount);
+
         if (amount0 > 0) balance0Before = balance0();
         if (amount1 > 0) balance1Before = balance1();
 
-        IUniswapV3MintCallback(msg.sender).uniswapV3MintCallback(amount0, amount1, "");
+        //User sends tokens through this..The caller is 
+        try IUniswapV3MintCallback(msg.sender).uniswapV3MintCallback(amount0, amount1, "") {
+            // Callback succeeded, continue with the function
+        } catch {
+            revert MintCallbackFailed();
+        }
 
         if (amount0 > 0 && balance0Before + amount0 > balance0()) revert InsufficientInputAmount();
         if (amount1 > 0 && balance1Before + amount1 > balance1()) revert InsufficientInputAmount();
@@ -72,20 +85,6 @@ contract UniswapV3Pool {
         emit Mint(msg.sender, owner, lowerTick, upperTick, liquidityAmount, amount0, amount1);
     }
 
-    // INCOMPLETE
-    function swap(address recipient) public returns (int256 amount0, int256 amount1) {
-        int24 nextTick = 85184;
-        uint160 nextPrice = 5604469350942327889444743441197;
-
-        amount0 = -0.008396714242162444 ether;
-        amount1 = 42 ether;
-
-        (slot0.tick , slot0.sqrtPriceX96) = (nextTick,nextPrice);
-
-        IERC20(token0).transfer(recipient,uint256(-amount0));
-        uint256 balance1Before = balance1();
-        // IUniswapV3MintCallback
-    }
 
     function balance0() internal view returns (uint256 balance) {
         balance = IERC20(token0).balanceOf(address(this));

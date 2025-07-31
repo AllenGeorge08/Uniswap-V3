@@ -9,6 +9,7 @@ import {IUniswapV3MintCallback} from "./interfaces/IUniswapV3MintCallback.sol";
 contract UniswapV3Pool {
     error InvalidTickRange();
     error InsufficientInputAmount();
+    error ZeroLiquidity();
 
     event Mint(address, address, int24, int24, uint256, uint256, uint256);
 
@@ -45,88 +46,45 @@ contract UniswapV3Pool {
         slot0 = Slot0({sqrtPriceX96: sqrtPriceX96, tick: tick});
     }
 
+    // INCOMPLETE
     function mint(address owner, int24 lowerTick, int24 upperTick, uint128 liquidityAmount)
         external
         returns (uint256 amount0, uint256 amount1)
     {
         if (lowerTick >= upperTick || lowerTick < MIN_TICK || upperTick > MAX_TICK) revert InvalidTickRange();
-        
-        // Calculate amounts based on liquidity and tick range
-        (amount0, amount1) = _calculateAmounts(lowerTick, upperTick, liquidityAmount);
-        
+
+        if (liquidityAmount == 0) revert ZeroLiquidity();
+
+        // amount0 = uint256(amount0Int);
+        // amount1 = uint256(amount1Int);
+
         uint256 balance0Before;
         uint256 balance1Before;
+
         if (amount0 > 0) balance0Before = balance0();
         if (amount1 > 0) balance1Before = balance1();
-        
+
         IUniswapV3MintCallback(msg.sender).uniswapV3MintCallback(amount0, amount1, "");
 
         if (amount0 > 0 && balance0Before + amount0 > balance0()) revert InsufficientInputAmount();
         if (amount1 > 0 && balance1Before + amount1 > balance1()) revert InsufficientInputAmount();
 
-        // Update position and ticks
-        _updatePosition(owner, lowerTick, upperTick, liquidityAmount);
-        _updateTicks(lowerTick, upperTick, liquidityAmount);
-
         emit Mint(msg.sender, owner, lowerTick, upperTick, liquidityAmount, amount0, amount1);
     }
 
-    function _calculateAmounts(int24 lowerTick, int24 upperTick, uint128 liquidityAmount) 
-        internal 
-        view 
-        returns (uint256 amount0, uint256 amount1) 
-    {
-        int24 currentTick = slot0.tick;
-        
-        // Calculate amounts based on whether current tick is in range
-        if (currentTick < lowerTick) {
-            // Current tick is below the range, only token0 is needed
-            amount0 = _getAmount0ForLiquidity(lowerTick, upperTick, liquidityAmount);
-        } else if (currentTick >= upperTick) {
-            // Current tick is above the range, only token1 is needed
-            amount1 = _getAmount1ForLiquidity(lowerTick, upperTick, liquidityAmount);
-        } else {
-            // Current tick is in range, both tokens are needed
-            amount0 = _getAmount0ForLiquidity(currentTick, upperTick, liquidityAmount);
-            amount1 = _getAmount1ForLiquidity(lowerTick, currentTick, liquidityAmount);
-        }
-    }
+    // INCOMPLETE
+    function swap(address recipient) public returns (int256 amount0, int256 amount1) {
+        int24 nextTick = 85184;
+        uint160 nextPrice = 5604469350942327889444743441197;
 
-    function _getAmount0ForLiquidity(int24 lowerTick, int24 upperTick, uint128 liquidityAmount) 
-        internal 
-        pure 
-        returns (uint256 amount0) 
-    {
-        // Ensure upperTick > lowerTick to avoid underflow
-        require(upperTick > lowerTick, "Invalid tick range");
-        
-        // Simplified calculation - in a real implementation this would use proper sqrt price math
-        uint256 tickDiff = uint256(uint24(upperTick - lowerTick));
-        amount0 = uint256(liquidityAmount) * tickDiff / 1e6;
-    }
+        amount0 = -0.008396714242162444 ether;
+        amount1 = 42 ether;
 
-    function _getAmount1ForLiquidity(int24 lowerTick, int24 upperTick, uint128 liquidityAmount) 
-        internal 
-        pure 
-        returns (uint256 amount1) 
-    {
-        // Ensure upperTick > lowerTick to avoid underflow
-        require(upperTick > lowerTick, "Invalid tick range");
-        
-        // Simplified calculation - in a real implementation this would use proper sqrt price math
-        uint256 tickDiff = uint256(uint24(upperTick - lowerTick));
-        amount1 = uint256(liquidityAmount) * tickDiff / 1e6;
-    }
+        (slot0.tick , slot0.sqrtPriceX96) = (nextTick,nextPrice);
 
-    function _updatePosition(address owner, int24 lowerTick, int24 upperTick, uint128 liquidityDelta) internal {
-        bytes32 positionKey = keccak256(abi.encodePacked(owner, lowerTick, upperTick));
-        Position.Info storage position = positions[positionKey];
-        position.update(liquidityDelta);
-    }
-
-    function _updateTicks(int24 lowerTick, int24 upperTick, uint128 liquidityDelta) internal {
-        ticks.update(lowerTick, liquidityDelta);
-        ticks.update(upperTick, liquidityDelta);
+        IERC20(token0).transfer(recipient,uint256(-amount0));
+        uint256 balance1Before = balance1();
+        // IUniswapV3MintCallback
     }
 
     function balance0() internal view returns (uint256 balance) {
